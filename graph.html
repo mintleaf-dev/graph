@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Летний график</title>
+    <script>
+    // Регистрация Service Worker для push-уведомлений
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js').then(function(reg) {
+            console.log('Service Worker зарегистрирован:', reg.scope);
+        }).catch(function(err) {
+            console.warn('Service Worker не зарегистрирован:', err);
+        });
+    }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
@@ -266,7 +276,60 @@
 <body class="light">
     <div class="container mx-auto px-4 py-8 max-w-6xl">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-            <h1 class="text-3xl font-bold text-primary">Мой летний график</h1>
+            <button id="push-subscribe-btn" class="px-4 py-2 bg-green-500 text-white rounded-lg no-print" style="margin-bottom:10px;">
+                Включить push-уведомления
+            </button>
+        // === VAPID public key (замените на свой после генерации!) ===
+        const VAPID_PUBLIC_KEY = 'BIQ5PVV-TXsTlnXI1IthlAALnsmXyQSnqJ6BHa3vzvmSmdZNOHzeN4r-QqfVOex06OfRlk3VVcIuGZN8sGv8IdQ';
+
+        // Функция для подписки на push-уведомления
+        async function subscribeUserToPush() {
+            if (!('serviceWorker' in navigator)) {
+                alert('Service Worker не поддерживается');
+                return;
+            }
+            const reg = await navigator.serviceWorker.ready;
+            let subscription = await reg.pushManager.getSubscription();
+            if (!subscription) {
+                try {
+                    subscription = await reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                    });
+                } catch (e) {
+                    alert('Не удалось подписаться: ' + e);
+                    return;
+                }
+            }
+            // Отправить подписку на сервер
+            try {
+                await fetch('/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(subscription)
+                });
+                alert('Подписка на push-уведомления выполнена!');
+            } catch (e) {
+                alert('Ошибка отправки подписки на сервер: ' + e);
+            }
+        }
+
+        // Вспомогательная функция для преобразования ключа
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/\-/g, '+')
+                .replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+        }
+
+        // Навесить обработчик на кнопку
+        document.addEventListener('DOMContentLoaded', () => {
+            const btn = document.getElementById('push-subscribe-btn');
+            if (btn) btn.onclick = subscribeUserToPush;
+        });
+            <h1 class="text-3xl font-bold text-primary">Летний график</h1>
             
             <div class="flex flex-wrap gap-2">
                 <button id="theme-toggle" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center gap-2 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors no-print">
@@ -287,62 +350,21 @@
         </div>
 
         <div class="mb-6 no-print">
-            <div class="flex items-center gap-2 mb-2">
+            <div class="w-full h-5 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden mb-2">
+                <div id="progress-bar-fill" class="h-5 bg-primary transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <div class="flex items-center gap-2">
                 <h2 class="text-lg font-semibold">Прогресс дня:</h2>
                 <span id="progress-percentage" class="text-sm font-medium">0%</span>
             </div>
-            <div class="progress-bar">
-                <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%"></div>
-            </div>
         </div>
 
-        <div class="mb-6 no-print legend-dark-bg">
-            <h2 class="text-lg font-semibold mb-2">Типы дней:</h2>
-            <div class="flex flex-wrap gap-4">
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-[var(--training)] rounded-full"></div>
-                    <span class="text-day-training font-semibold">День с тренировкой</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-[var(--free)] rounded-full"></div>
-                    <span class="text-day-free font-semibold">Полностью свободный день</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-[var(--walk)] rounded-full"></div>
-                    <span class="text-day-walk font-semibold">День с прогулкой</span>
-                </div>
-            </div>
-        </div>
 
-        <div class="mb-6 no-print legend-dark-bg">
-            <h2 class="text-lg font-semibold mb-2">Категории занятий:</h2>
-            <div class="flex flex-wrap gap-4">
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-[var(--study)] rounded-full"></div>
-                    <span class="text-study font-semibold">Учёба</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-[var(--training)] rounded-full"></div>
-                    <span class="text-training font-semibold">Тренировка</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-[var(--rest)] rounded-full"></div>
-                    <span class="text-rest font-semibold">Отдых</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-[var(--food)] rounded-full"></div>
-                    <span class="text-food font-semibold">Еда</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-[var(--other)] rounded-full"></div>
-                    <span class="text-other font-semibold">Другое</span>
-                </div>
-            </div>
-        </div>
 
         <div class="overflow-x-auto">
             <div class="mb-4 no-print">
                 <select id="day-type-selector" class="px-4 py-2 border rounded-lg">
+                    <option value="all" class="text-primary">Все дни</option>
                     <option value="training" class="text-day-training">День с тренировкой</option>
                     <option value="free" class="text-day-free">Свободный день</option>
                     <option value="walk" class="text-day-walk">День с прогулкой</option>
@@ -351,21 +373,7 @@
                     + Добавить строку
                 </button>
             </div>
-
-            <table id="schedule-table" class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow">
-                <thead>
-                    <tr class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                        <th class="py-3 px-4 text-left text-sm font-medium">Время</th>
-                        <th class="py-3 px-4 text-left text-sm font-medium">Занятие</th>
-                        <th class="py-3 px-4 text-left text-sm font-medium">Категория</th>
-                        <th class="py-3 px-4 text-left text-sm font-medium no-print">Заметки</th>
-                        <th class="py-3 px-4 text-left text-sm font-medium no-print">Действия</th>
-                    </tr>
-                </thead>
-                <tbody id="schedule-body" class="text-sm font-normal text-gray-800 dark:text-gray-200">
-                    <!-- Данные расписания будут динамически добавлены сюда -->
-                </tbody>
-            </table>
+            <div id="tables-container"></div>
         </div>
 
         <!-- Модальное окно для заметок -->
@@ -396,19 +404,20 @@
             setupEventListeners();
             updateDayProgress();
             highlightCurrentTime();
-            
-            // Обновление времени каждую минуту
+            // Обновление времени каждую минуту + проверка напоминаний
             setInterval(() => {
                 highlightCurrentTime();
                 updateDayProgress();
+                checkUpcomingActivities();
             }, 60000);
-            
             // Запрос разрешения на уведомления
             if ('Notification' in window) {
                 Notification.requestPermission().then(permission => {
                     notificationsEnabled = permission === 'granted';
                 });
             }
+            // Проверка напоминаний сразу при загрузке
+            checkUpcomingActivities();
         });
 
         // Загрузка данных из localStorage или использование шаблонов
@@ -502,34 +511,122 @@
             document.getElementById('notes-save').addEventListener('click', saveNotes);
         }
 
-        // Отрисовка расписания
+        // --- Новый универсальный рендерер для одной или всех таблиц ---
         function renderSchedule() {
-            const tableBody = document.getElementById('schedule-body');
-            tableBody.innerHTML = '';
-            
-            const dayData = scheduleData[currentDayType] || [];
+            const selector = document.getElementById('day-type-selector');
+            let mode = selector.value;
+            if (!mode) mode = 'all';
+            const container = document.getElementById('tables-container');
+            container.innerHTML = '';
+
+            // Для режима "Все дни"
+            if (mode === 'all') {
+                ['training', 'free', 'walk'].forEach(type => {
+                    container.appendChild(renderScheduleTable(type, true));
+                });
+                document.getElementById('add-row').style.display = 'none';
+            } else {
+                container.appendChild(renderScheduleTable(mode, false));
+                document.getElementById('add-row').style.display = '';
+            }
+        }
+
+        // --- Рендеринг одной таблицы расписания ---
+        function renderScheduleTable(dayType, showTitle) {
+            const dayNames = {
+                'training': 'День с тренировкой',
+                'free': 'Полностью свободный день',
+                'walk': 'День с прогулкой'
+            };
+            const tableWrap = document.createElement('div');
+            tableWrap.className = 'mb-8';
+            if (showTitle) {
+                const h3 = document.createElement('h3');
+                h3.className = 'text-xl font-bold mb-2';
+                h3.textContent = dayNames[dayType] || '';
+                tableWrap.appendChild(h3);
+            }
+            const table = document.createElement('table');
+            table.className = `min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow day-type-${dayType}`;
+            const thead = document.createElement('thead');
+            thead.innerHTML = `<tr class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                <th class="py-3 px-3 text-left text-sm font-medium w-32" style="min-width:90px;max-width:120px;">Время</th>
+                <th class="py-3 px-3 text-left text-sm font-medium w-32" style="min-width:100px;max-width:140px;">Длительность</th>
+                <th class="py-3 px-4 text-left text-sm font-medium">Занятие</th>
+                <th class="py-3 px-4 text-left text-sm font-medium">Категория</th>
+                <th class="py-3 px-4 text-left text-sm font-medium no-print">Заметки</th>
+                <th class="py-3 px-4 text-left text-sm font-medium no-print">Действия</th>
+            </tr>`;
+            table.appendChild(thead);
+            const tbody = document.createElement('tbody');
+            tbody.className = 'text-sm font-normal text-gray-800 dark:text-gray-200';
+            const dayData = scheduleData[dayType] || [];
             const reminders = getReminders();
+            const currentRowId = getCurrentRowId(dayType);
+            // Определяем, для какой таблицы и строки показывать ⏰
+            let autoDayType = getAutoDayType();
+            let selectorValue = document.getElementById('day-type-selector').value;
+
+
+            // === БЛОК: расчёт длительности интервалов времени для каждой строки ===
+            // Новый расчёт длительности для каждой строки
+            function getDurationText(timeStr) {
+                const timeRange = timeStr.split('-');
+                if (timeRange.length === 2) {
+                    const start = parseTime(timeRange[0]);
+                    const end = parseTime(timeRange[1]);
+                    if (start && end) {
+                        let mins = (end.hour * 60 + end.minute) - (start.hour * 60 + start.minute);
+                        if (mins < 0) mins += 24 * 60; // переход через полночь
+                        if (mins > 0 && mins < 60) {
+                            return `${mins} мин`;
+                        } else if (mins >= 60) {
+                            const hours = Math.floor(mins / 60);
+                            const minutes = mins % 60;
+                            if (minutes === 0) {
+                                return `${hours} ${hours === 1 ? 'час' : (hours >= 2 && hours <= 4 ? 'часа' : 'часов')}`;
+                            } else {
+                                return `${hours} ${hours === 1 ? 'час' : (hours >= 2 && hours <= 4 ? 'часа' : 'часов')} ${minutes} мин`;
+                            }
+                        }
+                    }
+                }
+                return '';
+            }
+
             dayData.forEach((item, index) => {
                 const row = document.createElement('tr');
                 row.dataset.id = item.id;
                 row.classList.add('hover:bg-gray-50', 'dark:hover:bg-gray-700', 'transition-colors');
-                
                 if (item.category) {
                     row.classList.add(`category-${item.category}`);
                 }
-                
+                // Логика отображения кнопки ⏰
+                let showClockBtn = false;
+                if (item.id === currentRowId) {
+                    if (selectorValue === 'all') {
+                        showClockBtn = (dayType === autoDayType);
+                    } else {
+                        showClockBtn = (dayType === autoDayType);
+                    }
+                    if (showClockBtn) row.classList.add('current-time');
+                }
+                // Новый вывод длительности
                 row.innerHTML = `
-                    <td class="border p-2">
-                        <input type="text" value="${item.time}" class="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 py-1" 
-                            onchange="updateCell('${item.id}', 'time', this.value)">
+                    <td class="border p-2 w-32" style="min-width:90px;max-width:120px;">
+                        <input type="text" value="${item.time}" class="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 py-1 text-sm" 
+                            onchange="updateCell('${item.id}', 'time', this.value, '${dayType}')">
+                    </td>
+                    <td class="border p-2 w-32 text-center text-xs text-gray-700 dark:text-gray-300" style="min-width:100px;max-width:140px;">
+                        ${getDurationText(item.time)}
                     </td>
                     <td class="border p-2">
                         <input type="text" value="${item.activity}" class="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 py-1" 
-                            onchange="updateCell('${item.id}', 'activity', this.value)">
+                            onchange="updateCell('${item.id}', 'activity', this.value, '${dayType}')">
                     </td>
                     <td class="border p-2">
                         <select class="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 py-1" 
-                            onchange="updateCell('${item.id}', 'category', this.value)">
+                            onchange="updateCell('${item.id}', 'category', this.value, '${dayType}')">
                             <option value="study" class="text-study" ${item.category === 'study' ? 'selected' : ''}>Учёба</option>
                             <option value="training" class="text-training" ${item.category === 'training' ? 'selected' : ''}>Тренировка</option>
                             <option value="rest" class="text-rest" ${item.category === 'rest' ? 'selected' : ''}>Отдых</option>
@@ -539,7 +636,7 @@
                     </td>
                     <td class="border p-2 no-print">
                         <button class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
-                            onclick="openNotesModal('${item.id}')" title="Заметки">
+                            onclick="openNotesModal('${item.id}', '${dayType}')" title="Заметки">
                             ${item.notes ? '📝 Есть заметки' : '✏️ Добавить'}
                         </button>
                     </td>
@@ -548,74 +645,97 @@
                             <button class="action-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 handle" title="Переместить">
                                 ↕️
                             </button>
-                            <button class="action-btn p-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800" onclick="deleteRow('${item.id}')" title="Удалить">
+                            <button class="action-btn p-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800" onclick="deleteRow('${item.id}', '${dayType}')" title="Удалить">
                                 🗑️
                             </button>
-                            <button class="action-btn btn-duplicate" onclick="duplicateRow('${item.id}')" title="Дублировать">
+                            <button class="action-btn btn-duplicate" onclick="duplicateRow('${item.id}', '${dayType}')" title="Дублировать">
                                 ➕
                             </button>
                             <button class="action-btn btn-reminder${reminders[item.id] ? ' active' : ''}" onclick="toggleReminder('${item.id}')" title="Напоминание">
                                 🔔
                             </button>
+                            ${showClockBtn ? `<button class="action-btn btn-clock" title="Сейчас"></button>` : ''}
                         </div>
                     </td>
                 `;
-                
-                tableBody.appendChild(row);
+                tbody.appendChild(row);
             });
-            
-            // Применение Sortable.js для перетаскивания строк
-            new Sortable(tableBody, {
-                handle: '.handle',
-                animation: 150,
-                onEnd: function(evt) {
-                    updateRowOrder();
-                }
-            });
-            
-            // Обновление заголовка таблицы в соответствии с типом дня
-            const table = document.getElementById('schedule-table');
-            table.className = table.className.replace(/day-type-\w+/g, '');
-            table.classList.add(`day-type-${currentDayType}`);
-            
-            // Подсветка текущего времени
-            highlightCurrentTime();
-            
-            // Сохранение данных
-            saveScheduleData();
+            table.appendChild(tbody);
+            // Drag&drop только если не all
+            if (document.getElementById('day-type-selector').value !== 'all') {
+                new Sortable(tbody, {
+                    handle: '.handle',
+                    animation: 150,
+                    onEnd: function(evt) {
+                        updateRowOrder(dayType);
+                    }
+                });
+            }
+            tableWrap.appendChild(table);
+            return tableWrap;
         }
 
-        // Обновление ячейки таблицы
-        function updateCell(id, field, value) {
-            const dayData = scheduleData[currentDayType] || [];
-            const itemIndex = dayData.findIndex(item => item.id === id);
-            
-            if (itemIndex !== -1) {
-                dayData[itemIndex][field] = value;
-                
-                // Обновление класса категории для строки
-                if (field === 'category') {
-                    const row = document.querySelector(`tr[data-id="${id}"]`);
-                    if (row) {
-                        row.className = row.className.replace(/category-\w+/g, '');
-                        row.classList.add(`category-${value}`);
-                    }
+        // Получить id строки с текущим временем для dayType
+function getCurrentRowId(dayType) {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const dayData = scheduleData[dayType] || [];
+    let lastBlockId = null;
+    for (const item of dayData) {
+        const timeRange = item.time.split('-');
+        if (timeRange.length === 2) {
+            const startTime = parseTime(timeRange[0]);
+            const endTime = parseTime(timeRange[1]);
+            if (startTime && endTime) {
+                const currentTime = currentHour * 60 + currentMinute;
+                const startMinutes = startTime.hour * 60 + startTime.minute;
+                const endMinutes = endTime.hour * 60 + endTime.minute;
+                if (currentTime >= startMinutes && currentTime < endMinutes) {
+                    return item.id;
                 }
-                
-                saveScheduleData();
-                
-                // Если изменилось время, обновляем подсветку текущего времени
-                if (field === 'time') {
-                    highlightCurrentTime();
+            }
+        } else if (timeRange.length === 1 && item.time.trim()) {
+            // Если только время начала (например, "22:00"), считаем активным, если текущее время >= start
+            const startTime = parseTime(timeRange[0]);
+            if (startTime) {
+                const currentTime = currentHour * 60 + currentMinute;
+                const startMinutes = startTime.hour * 60 + startTime.minute;
+                if (currentTime >= startMinutes) {
+                    lastBlockId = item.id;
                 }
             }
         }
+    }
+    return lastBlockId;
+}
 
-        // Добавление новой строки
-        function addNewRow() {
-            const dayData = scheduleData[currentDayType] || [];
-            const newId = `${currentDayType[0]}${Date.now()}`;
-            
+
+        // --- Универсальные функции для работы с dayType ---
+        function updateCell(id, field, value, dayType) {
+            dayType = dayType || getCurrentDayType();
+            const dayData = scheduleData[dayType] || [];
+            const itemIndex = dayData.findIndex(item => item.id === id);
+            if (itemIndex !== -1) {
+                dayData[itemIndex][field] = value;
+                if (field === 'category') {
+                    const selector = document.querySelector(`tr[data-id="${id}"]`);
+                    if (selector) {
+                        selector.className = selector.className.replace(/category-\w+/g, '');
+                        selector.classList.add(`category-${value}`);
+                    }
+                }
+                saveScheduleData();
+                // После изменения времени или любой другой ячейки — всегда пересчитываем длительность через renderSchedule
+                renderSchedule();
+            }
+        }
+
+        function addNewRow(dayType) {
+            dayType = dayType || getCurrentDayType();
+            if (dayType === 'all') dayType = 'training';
+            const dayData = scheduleData[dayType] || [];
+            const newId = `${dayType[0]}${Date.now()}`;
             dayData.push({
                 id: newId,
                 time: '',
@@ -623,41 +743,70 @@
                 category: 'other',
                 notes: ''
             });
-            
-            scheduleData[currentDayType] = dayData;
+            scheduleData[dayType] = dayData;
             renderSchedule();
         }
 
-        // Удаление строки
-        function deleteRow(id) {
-            const dayData = scheduleData[currentDayType] || [];
+        function deleteRow(id, dayType) {
+            dayType = dayType || getCurrentDayType();
+            const dayData = scheduleData[dayType] || [];
             const itemIndex = dayData.findIndex(item => item.id === id);
-            
             if (itemIndex !== -1) {
                 dayData.splice(itemIndex, 1);
-                scheduleData[currentDayType] = dayData;
+                scheduleData[dayType] = dayData;
                 renderSchedule();
             }
         }
 
-        // Обновление порядка строк после перетаскивания
-        function updateRowOrder() {
-            const tableBody = document.getElementById('schedule-body');
-            const rows = tableBody.querySelectorAll('tr');
+        function updateRowOrder(dayType) {
+            dayType = dayType || getCurrentDayType();
+            const container = document.getElementById('tables-container');
+            const table = container.querySelector(`.day-type-${dayType}`);
+            if (!table) return;
+            const tbody = table.querySelector('tbody');
+            const rows = tbody.querySelectorAll('tr');
             const newOrder = [];
-            
+            const dayData = scheduleData[dayType] || [];
             rows.forEach(row => {
                 const id = row.dataset.id;
-                const dayData = scheduleData[currentDayType] || [];
                 const item = dayData.find(item => item.id === id);
-                
-                if (item) {
-                    newOrder.push(item);
-                }
+                if (item) newOrder.push(item);
             });
-            
-            scheduleData[currentDayType] = newOrder;
+            scheduleData[dayType] = newOrder;
             saveScheduleData();
+        }
+
+        function duplicateRow(id, dayType) {
+            dayType = dayType || getCurrentDayType();
+            const dayData = scheduleData[dayType] || [];
+            const idx = dayData.findIndex(item => item.id === id);
+            if (idx !== -1) {
+                const orig = dayData[idx];
+                const copy = { ...orig, id: `${id}_copy_${Date.now()}` };
+                dayData.splice(idx + 1, 0, copy);
+                scheduleData[dayType] = dayData;
+                renderSchedule();
+            }
+        }
+
+        function openNotesModal(rowId, dayType) {
+            currentNoteRowId = rowId;
+            currentNoteDayType = dayType || getCurrentDayType();
+            const dayData = scheduleData[currentNoteDayType] || [];
+            const item = dayData.find(item => item.id === rowId);
+            if (item) {
+                document.getElementById('notes-content').value = item.notes || '';
+                document.getElementById('notes-modal').classList.remove('hidden');
+            }
+        }
+
+        function getCurrentDayType() {
+            const selector = document.getElementById('day-type-selector');
+            return selector && selector.value ? selector.value : 'all';
+        }
+
+        function highlightCurrentTime() {
+            renderSchedule();
         }
 
         // Сохранение данных в localStorage
@@ -665,102 +814,43 @@
             localStorage.setItem('scheduleData', JSON.stringify(scheduleData));
         }
 
-        // Подсветка текущего времени
-        function highlightCurrentTime() {
-            const now = new Date();
-            const currentHour = now.getHours();
-            const currentMinute = now.getMinutes();
-            
-            // Удаление предыдущей подсветки
-            const previousHighlighted = document.querySelector('.current-time');
-            if (previousHighlighted) {
-                previousHighlighted.classList.remove('current-time');
-            }
-            
-            // Поиск текущего временного блока
-            const dayData = scheduleData[currentDayType] || [];
-            let currentActivity = null;
-            
-            for (const item of dayData) {
-                const timeRange = item.time.split('-');
-                
-                if (timeRange.length === 2) {
-                    const startTime = parseTime(timeRange[0]);
-                    const endTime = parseTime(timeRange[1]);
-                    
-                    if (startTime && endTime) {
-                        const currentTime = currentHour * 60 + currentMinute;
-                        const startMinutes = startTime.hour * 60 + startTime.minute;
-                        const endMinutes = endTime.hour * 60 + endTime.minute;
-                        
-                        if (currentTime >= startMinutes && currentTime < endMinutes) {
-                            const row = document.querySelector(`tr[data-id="${item.id}"]`);
-                            if (row) {
-                                row.classList.add('current-time');
-                                currentActivity = item;
-                            }
-                            // --- ДОБАВЛЕНО: уведомление для напоминания ---
-                            if (isReminderActive(item.id)) {
-                                const reminderKey = `reminder_${item.id}_${now.toDateString()}`;
-                                if (!localStorage.getItem(reminderKey)) {
-                                    if ('Notification' in window && Notification.permission === 'granted') {
-                                        new Notification('Напоминание', { body: item.activity || 'Время события!', icon: 'https://cdn-icons-png.flaticon.com/512/2693/2693507.png' });
-                                    }
-                                    reminderAudio.currentTime = 0;
-                                    reminderAudio.play();
-                                    localStorage.setItem(reminderKey, 'sent');
-                                }
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            // Отправка уведомления о следующем занятии
-            if (currentActivity && notificationsEnabled) {
-                checkUpcomingActivities(currentActivity);
-            }
-        }
+        // (удалена дублирующая функция highlightCurrentTime)
 
-        // Проверка предстоящих занятий для уведомлений
-        function checkUpcomingActivities(currentActivity) {
+        // Проверка предстоящих занятий для уведомлений (для всех дней и всех строк)
+        function checkUpcomingActivities() {
             const now = new Date();
             const currentHour = now.getHours();
             const currentMinute = now.getMinutes();
             const currentTime = currentHour * 60 + currentMinute;
-            
-            const dayData = scheduleData[currentDayType] || [];
-            
-            for (const item of dayData) {
-                const timeRange = item.time.split('-');
-                
-                if (timeRange.length === 2) {
-                    const startTime = parseTime(timeRange[0]);
-                    
-                    if (startTime) {
-                        const startMinutes = startTime.hour * 60 + startTime.minute;
-                        const timeUntilStart = startMinutes - currentTime;
-                        
-                        // Уведомление за 10 минут до начала следующего занятия
-                        if (timeUntilStart > 0 && timeUntilStart <= 10) {
-                            // Проверяем, не отправляли ли мы уже уведомление для этого занятия
-                            const notificationKey = `notification_${item.id}_${now.toDateString()}`;
-                            const notificationSent = localStorage.getItem(notificationKey);
-                            
-                            if (!notificationSent && 'Notification' in window && Notification.permission === 'granted') {
-                                const notification = new Notification('Напоминание о расписании', {
-                                    body: `Через ${timeUntilStart} мин: ${item.activity}`,
-                                    icon: 'https://cdn-icons-png.flaticon.com/512/2693/2693507.png'
-                                });
-                                
-                                // Отмечаем, что уведомление отправлено
-                                localStorage.setItem(notificationKey, 'sent');
+            const reminders = getReminders();
+            // Проверяем все dayType
+            ['training', 'free', 'walk'].forEach(dayType => {
+                const dayData = scheduleData[dayType] || [];
+                for (const item of dayData) {
+                    if (!reminders[item.id]) continue; // Только для включённых напоминаний
+                    const timeRange = item.time.split('-');
+                    if (timeRange.length === 2) {
+                        const startTime = parseTime(timeRange[0]);
+                        if (startTime) {
+                            const startMinutes = startTime.hour * 60 + startTime.minute;
+                            const timeUntilStart = startMinutes - currentTime;
+                            // Уведомление за 10 минут до начала
+                            if (timeUntilStart > 0 && timeUntilStart <= 10) {
+                                const notificationKey = `reminder_${item.id}_${now.toDateString()}`;
+                                const notificationSent = localStorage.getItem(notificationKey);
+                                if (!notificationSent && 'Notification' in window && Notification.permission === 'granted') {
+                                    new Notification('Напоминание о расписании', {
+                                        body: `Через ${timeUntilStart} мин: ${item.activity}`,
+                                        icon: 'https://cdn-icons-png.flaticon.com/512/2693/2693507.png'
+                                    });
+                                    reminderAudio.play().catch(()=>{});
+                                    localStorage.setItem(notificationKey, 'sent');
+                                }
                             }
                         }
                     }
                 }
-            }
+            });
         }
 
         // Парсинг времени из строки
@@ -799,20 +889,13 @@
             }
             
             document.getElementById('progress-percentage').textContent = `${progress}%`;
-            document.getElementById('progress-bar-fill').style.width = `${progress}%`;
+            const fill = document.getElementById('progress-bar-fill');
+            fill.style.width = `${progress}%`;
+            fill.style.background = 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)';
+            fill.style.transition = 'width 0.5s cubic-bezier(0.4,0,0.6,1)';
         }
 
-        // Открытие модального окна для заметок
-        function openNotesModal(rowId) {
-            currentNoteRowId = rowId;
-            const dayData = scheduleData[currentDayType] || [];
-            const item = dayData.find(item => item.id === rowId);
-            
-            if (item) {
-                document.getElementById('notes-content').value = item.notes || '';
-                document.getElementById('notes-modal').classList.remove('hidden');
-            }
-        }
+        // ...existing code...
 
         // Закрытие модального окна для заметок
         function closeNotesModal() {
@@ -821,18 +904,18 @@
         }
 
         // Сохранение заметок
+        let currentNoteDayType = null;
         function saveNotes() {
             if (currentNoteRowId) {
                 const notes = document.getElementById('notes-content').value;
-                const dayData = scheduleData[currentDayType] || [];
+                const dayType = currentNoteDayType || getCurrentDayType();
+                const dayData = scheduleData[dayType] || [];
                 const itemIndex = dayData.findIndex(item => item.id === currentNoteRowId);
-                
                 if (itemIndex !== -1) {
                     dayData[itemIndex].notes = notes;
                     saveScheduleData();
                     renderSchedule();
                 }
-                
                 closeNotesModal();
             }
         }
@@ -903,163 +986,46 @@
             setReminders(rem);
             renderSchedule();
         }
-        // --- ДОБАВЛЕНО: дублирование строки ---
-        function duplicateRow(rowId) {
-            const dayData = scheduleData[currentDayType] || [];
-            const idx = dayData.findIndex(item => item.id === rowId);
-            if (idx !== -1) {
-                const orig = dayData[idx];
-                const copy = { ...orig, id: `${rowId}_copy_${Date.now()}` };
-                dayData.splice(idx + 1, 0, copy);
-                scheduleData[currentDayType] = dayData;
-                renderSchedule();
-            }
-        }
-        // --- МОДИФИЦИРОВАНО: renderSchedule ---
-        function renderSchedule() {
-            const tableBody = document.getElementById('schedule-body');
-            tableBody.innerHTML = '';
-            
-            const dayData = scheduleData[currentDayType] || [];
-            const reminders = getReminders();
-            dayData.forEach((item, index) => {
-                const row = document.createElement('tr');
-                row.dataset.id = item.id;
-                row.classList.add('hover:bg-gray-50', 'dark:hover:bg-gray-700', 'transition-colors');
-                
-                if (item.category) {
-                    row.classList.add(`category-${item.category}`);
-                }
-                
-                row.innerHTML = `
-                    <td class="border p-2">
-                        <input type="text" value="${item.time}" class="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 py-1" 
-                            onchange="updateCell('${item.id}', 'time', this.value)">
-                    </td>
-                    <td class="border p-2">
-                        <input type="text" value="${item.activity}" class="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 py-1" 
-                            onchange="updateCell('${item.id}', 'activity', this.value)">
-                    </td>
-                    <td class="border p-2">
-                        <select class="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 py-1" 
-                            onchange="updateCell('${item.id}', 'category', this.value)">
-                            <option value="study" class="text-study" ${item.category === 'study' ? 'selected' : ''}>Учёба</option>
-                            <option value="training" class="text-training" ${item.category === 'training' ? 'selected' : ''}>Тренировка</option>
-                            <option value="rest" class="text-rest" ${item.category === 'rest' ? 'selected' : ''}>Отдых</option>
-                            <option value="food" class="text-food" ${item.category === 'food' ? 'selected' : ''}>Еда</option>
-                            <option value="other" class="text-other" ${item.category === 'other' ? 'selected' : ''}>Другое</option>
-                        </select>
-                    </td>
-                    <td class="border p-2 no-print">
-                        <button class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
-                            onclick="openNotesModal('${item.id}')" title="Заметки">
-                            ${item.notes ? '📝 Есть заметки' : '✏️ Добавить'}
-                        </button>
-                    </td>
-                    <td class="border p-2 no-print">
-                        <div class="flex gap-2">
-                            <button class="action-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 handle" title="Переместить">
-                                ↕️
-                            </button>
-                            <button class="action-btn p-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800" onclick="deleteRow('${item.id}')" title="Удалить">
-                                🗑️
-                            </button>
-                            <button class="action-btn btn-duplicate" onclick="duplicateRow('${item.id}')" title="Дублировать">
-                                ➕
-                            </button>
-                            <button class="action-btn btn-reminder${reminders[item.id] ? ' active' : ''}" onclick="toggleReminder('${item.id}')" title="Напоминание">
-                                🔔
-                            </button>
-                        </div>
-                    </td>
-                `;
-                
-                tableBody.appendChild(row);
-            });
-            
-            // Применение Sortable.js для перетаскивания строк
-            new Sortable(tableBody, {
-                handle: '.handle',
-                animation: 150,
-                onEnd: function(evt) {
-                    updateRowOrder();
-                }
-            });
-            
-            // Обновление заголовка таблицы в соответствии с типом дня
-            const table = document.getElementById('schedule-table');
-            table.className = table.className.replace(/day-type-\w+/g, '');
-            table.classList.add(`day-type-${currentDayType}`);
-            
-            // Подсветка текущего времени
-            highlightCurrentTime();
-            
-            // Сохранение данных
-            saveScheduleData();
-        }
-        // --- МОДИФИЦИРОВАНО: highlightCurrentTime ---
-        function highlightCurrentTime() {
-            const now = new Date();
-            const currentHour = now.getHours();
-            const currentMinute = now.getMinutes();
-            
-            // Удаление предыдущей подсветки
-            const previousHighlighted = document.querySelector('.current-time');
-            if (previousHighlighted) {
-                previousHighlighted.classList.remove('current-time');
-            }
-            
-            // Поиск текущего временного блока
-            const dayData = scheduleData[currentDayType] || [];
-            let currentActivity = null;
-            
-            for (const item of dayData) {
-                const timeRange = item.time.split('-');
-                
-                if (timeRange.length === 2) {
-                    const startTime = parseTime(timeRange[0]);
-                    const endTime = parseTime(timeRange[1]);
-                    
-                    if (startTime && endTime) {
-                        const currentTime = currentHour * 60 + currentMinute;
-                        const startMinutes = startTime.hour * 60 + startTime.minute;
-                        const endMinutes = endTime.hour * 60 + endTime.minute;
-                        
-                        if (currentTime >= startMinutes && currentTime < endMinutes) {
-                            const row = document.querySelector(`tr[data-id="${item.id}"]`);
-                            if (row) {
-                                row.classList.add('current-time');
-                                currentActivity = item;
-                            }
-                            // --- ДОБАВЛЕНО: уведомление для напоминания ---
-                            if (isReminderActive(item.id)) {
-                                const reminderKey = `reminder_${item.id}_${now.toDateString()}`;
-                                if (!localStorage.getItem(reminderKey)) {
-                                    if ('Notification' in window && Notification.permission === 'granted') {
-                                        new Notification('Напоминание', { body: item.activity || 'Время события!', icon: 'https://cdn-icons-png.flaticon.com/512/2693/2693507.png' });
-                                    }
-                                    reminderAudio.currentTime = 0;
-                                    reminderAudio.play();
-                                    localStorage.setItem(reminderKey, 'sent');
-                                }
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            // Отправка уведомления о следующем занятии
-            if (currentActivity && notificationsEnabled) {
-                checkUpcomingActivities(currentActivity);
-            }
-        }
+        // ...existing code...
+        // ...existing code...
+        // ...existing code...
         // --- ДОБАВЛЕНО: сброс напоминаний при смене дня ---
         document.getElementById('day-type-selector').addEventListener('change', () => {
             // Сбросить отметки о сработавших напоминаниях для нового дня
             Object.keys(localStorage).forEach(key => {
                 if (key.startsWith('reminder_')) localStorage.removeItem(key);
             });
+            renderSchedule();
+        });
+
+        // --- Инициализация: по умолчанию режим "Все дни" ---
+        // --- Автоматический выбор типа дня по циклу с 4 июля 2025 ---
+        function getAutoDayType() {
+            // 4 июля 2025 — первый день цикла (день с тренировкой)
+            const cycle = ['training', 'free', 'training', 'walk'];
+            const start = new Date(2025, 6, 4); // Месяцы с 0, июль = 6
+            const now = new Date();
+            // Обнуляем время для точного расчёта дней
+            start.setHours(0,0,0,0);
+            now.setHours(0,0,0,0);
+            const daysPassed = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+            let idx = (daysPassed % 4);
+            if (idx < 0) idx += 4;
+            // Маппинг по условию
+            // Остаток 0 или 4 → walk, 1 → training, 2 → free, 3 → training
+            if (idx === 0) return 'training';
+            if (idx === 1) return 'free';
+            if (idx === 2) return 'training';
+            if (idx === 3) return 'walk';
+            return 'training';
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const selector = document.getElementById('day-type-selector');
+            // Если пользователь не выбирал вручную, авто-режим
+            let autoType = getAutoDayType();
+            selector.value = autoType;
+            renderSchedule();
         });
     </script>
 <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'958fcdffc6db2d97',t:'MTc1MTQ3NjczMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
