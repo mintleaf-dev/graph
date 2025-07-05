@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Летний график</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-light: #818cf8;
+            --secondary: #10b981;
+            --accent: #f43f5e;
+            --light: #f9fafb;
+            --dark: #1f2937;
+            --training: #ef4444;
+            --free: #10b981;
+            --walk: #8b5cf6;
+            --study: #3b82f6;
+            --rest: #84cc16;
+            --food: #f59e0b;
+            --other: #64748b;
+            --cell-bg: #fff;
+            --cell-text: #222;
+            --row-bg: #f3f4f6;
+            --row-hover: #e5e7eb;
+            --category-study-bg: #e3edfc;
+            --category-training-bg: #fde2e2;
+            --category-rest-bg: #f3fbe3;
+            --category-food-bg: #fff6e3;
+            --category-other-bg: #e5e9f2;
+        }
+        body.dark {
+            --primary: #818cf8;
+            --primary-light: #a5b4fc;
+            --secondary: #34d399;
+            --accent: #fb7185;
+            --light: #e0e0e0;
+            --dark: #121212;
+            --training: #ff6b6b;
+            --free: #34d399;
+            --walk: #a78bfa;
+            --study: #60a5fa;
+            --rest: #bef264;
+            --food: #fbbf24;
+            --other: #94a3b8;
+            --cell-bg: #1e1e1e;
+            --cell-text: #e0e0e0;
+            --row-bg: #181818;
+            --row-hover: #333333;
+            --category-study-bg: #22304a;
+            --category-training-bg: #3a2323;
+            --category-rest-bg: #2a3320;
+            --category-food-bg: #3a2f1e;
+            --category-other-bg: #232a33;
+        }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+            background-color: var(--dark);
+            color: var(--cell-text);
+        }
+        body.light {
+            background-color: var(--light);
+            color: var(--dark);
+        }
+        body.dark {
+            background-color: var(--dark);
+            color: var(--light);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            background: var(--cell-bg);
+            color: var(--cell-text);
+            border: 1px solid #d1d5db;
+            padding: 0.5rem;
+            transition: background 0.3s, color 0.3s;
+        }
+        tbody tr {
+            background: var(--row-bg);
+            transition: background 0.3s;
+        }
+        tbody tr:hover {
+            background: var(--row-hover);
+        }
+        .category-study td, .category-study {
+            background: var(--category-study-bg) !important;
+        }
+        .category-training td, .category-training {
+            background: var(--category-training-bg) !important;
+        }
+        .category-rest td, .category-rest {
+            background: var(--category-rest-bg) !important;
+        }
+        .category-food td, .category-food {
+            background: var(--category-food-bg) !important;
+        }
+        .category-other td, .category-other {
+            background: var(--category-other-bg) !important;
+        }
+        .current-time {
+            background-color: rgba(79, 70, 229, 0.2) !important;
+            position: relative;
+        }
+        .current-time::after {
+            content: "⏰ Сейчас";
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: var(--primary);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        .day-type-training {
+            border-top: 4px solid var(--training);
+        }
+        .day-type-free {
+            border-top: 4px solid var(--free);
+        }
+        .day-type-walk {
+            border-top: 4px solid var(--walk);
+        }
+        /* Цветовые метки категорий */
+        .category-dot-study { background: var(--study); }
+        .category-dot-training { background: var(--training); }
+        .category-dot-rest { background: var(--rest); }
+        .category-dot-food { background: var(--food); }
+        .category-dot-other { background: var(--other); }
+        /* Цвет текста для категорий */
+        .text-study { color: var(--study) !important; }
+        .text-training { color: var(--training) !important; }
+        .text-rest { color: var(--rest) !important; }
+        .text-food { color: var(--food) !important; }
+        .text-other { color: var(--other) !important; }
+        /* Цвет текста для типов дней */
+        .text-day-training { color: var(--training) !important; }
+        .text-day-free { color: var(--free) !important; }
+        .text-day-walk { color: var(--walk) !important; }
+        /* Стилизация select для тёмной темы */
+        select {
+            background: var(--cell-bg);
+            color: var(--cell-text);
+            border: 1px solid #d1d5db;
+            transition: background 0.3s, color 0.3s, border 0.3s;
+        }
+        body.dark select {
+            color: #fff !important;
+            border: 1px solid #444 !important;
+            background: #1e1e1e !important;
+        }
+        body.dark select:focus {
+            border-color: #666 !important;
+        }
+        /* Цветные option в select (только для поддерживающих браузеров) */
+        select option.text-study { color: var(--study); }
+        select option.text-training { color: var(--training); }
+        select option.text-rest { color: var(--rest); }
+        select option.text-food { color: var(--food); }
+        select option.text-other { color: var(--other); }
+        select option.text-day-training { color: var(--training); }
+        select option.text-day-free { color: var(--free); }
+        select option.text-day-walk { color: var(--walk); }
+        /* Легенда категорий и типов дней — фон как у строк таблицы */
+        .legend-dark-bg {
+            background: #181818;
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+        @media (prefers-color-scheme: dark) {
+            .legend-dark-bg { background: #181818; }
+        }
+        body.dark .legend-dark-bg { background: #181818; }
+        /* Для day-type-selector */
+        select option.text-day-training { color: var(--training); }
+        select option.text-day-free { color: var(--free); }
+        select option.text-day-walk { color: var(--walk); }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            
+            body {
+                background-color: white !important;
+                color: black !important;
+            }
+            
+            .container {
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        /* --- ДОБАВЛЕНО: стили для новых кнопок действий --- */
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 1rem;
+            transition: background 0.2s, color 0.2s;
+            cursor: pointer;
+        }
+        .action-btn[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-duplicate {
+            background: #e0e7ef;
+            color: #22c55e;
+        }
+        .btn-duplicate:hover {
+            background: #86efac;
+            color: #166534;
+        }
+        .btn-reminder {
+            background: #e5e7eb;
+            color: #6b7280;
+        }
+        .btn-reminder.active {
+            background: #fbbf24;
+            color: #fff;
+        }
+        .btn-reminder:hover {
+            background: #fde68a;
+            color: #b45309;
+        }
+        .dark .btn-duplicate {
+            background: #232a33;
+            color: #4ade80;
+        }
+        .dark .btn-duplicate:hover {
+            background: #13b020;
+            color: #166534;
+        }
+        .dark .btn-reminder {
+            background: #232a33;
+            color: #6b7280;
+        }
+        .dark .btn-reminder.active {
+            background: #fbbf24;
+            color: #222;
+        }
+        .dark .btn-reminder:hover {
+            background: #fde68a;
+            color: #b45309;
+        }
+    </style>
+</head>
+<body class="light">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <h1 class="text-3xl font-bold text-primary">Мой летний график</h1>
+            
+            <div class="flex flex-wrap gap-2">
+                <button id="theme-toggle" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center gap-2 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors no-print">
+                    <span id="theme-icon">🌙</span>
+                    <span id="theme-text">Тёмная тема</span>
+                </button>
+                
+                <button id="export-pdf" class="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors no-print">
+                    <span>📄</span>
+                    <span>Экспорт PDF</span>
+                </button>
+                
+                <button id="reset-schedule" class="px-4 py-2 bg-red-600 text-white rounded-lg flex items-center gap-2 hover:bg-red-700 transition-colors no-print">
+                    <span>🔄</span>
+                    <span>Сбросить</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="mb-6 no-print">
+            <div class="flex items-center gap-2 mb-2">
+                <h2 class="text-lg font-semibold">Прогресс дня:</h2>
+                <span id="progress-percentage" class="text-sm font-medium">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div class="mb-6 no-print legend-dark-bg">
+            <h2 class="text-lg font-semibold mb-2">Типы дней:</h2>
+            <div class="flex flex-wrap gap-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-[var(--training)] rounded-full"></div>
+                    <span class="text-day-training font-semibold">День с тренировкой</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-[var(--free)] rounded-full"></div>
+                    <span class="text-day-free font-semibold">Полностью свободный день</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-[var(--walk)] rounded-full"></div>
+                    <span class="text-day-walk font-semibold">День с прогулкой</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-6 no-print legend-dark-bg">
+            <h2 class="text-lg font-semibold mb-2">Категории занятий:</h2>
+            <div class="flex flex-wrap gap-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-[var(--study)] rounded-full"></div>
+                    <span class="text-study font-semibold">Учёба</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-[var(--training)] rounded-full"></div>
+                    <span class="text-training font-semibold">Тренировка</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-[var(--rest)] rounded-full"></div>
+                    <span class="text-rest font-semibold">Отдых</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-[var(--food)] rounded-full"></div>
+                    <span class="text-food font-semibold">Еда</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-[var(--other)] rounded-full"></div>
+                    <span class="text-other font-semibold">Другое</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <div class="mb-4 no-print">
+                <select id="day-type-selector" class="px-4 py-2 border rounded-lg">
+                    <option value="training" class="text-day-training">День с тренировкой</option>
+                    <option value="free" class="text-day-free">Свободный день</option>
+                    <option value="walk" class="text-day-walk">День с прогулкой</option>
+                </select>
+                <button id="add-row" class="ml-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                    + Добавить строку
+                </button>
+            </div>
+
+            <table id="schedule-table" class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow">
+                <thead>
+                    <tr class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                        <th class="py-3 px-4 text-left text-sm font-medium">Время</th>
+                        <th class="py-3 px-4 text-left text-sm font-medium">Занятие</th>
+                        <th class="py-3 px-4 text-left text-sm font-medium">Категория</th>
+                        <th class="py-3 px-4 text-left text-sm font-medium no-print">Заметки</th>
+                        <th class="py-3 px-4 text-left text-sm font-medium no-print">Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="schedule-body" class="text-sm font-normal text-gray-800 dark:text-gray-200">
+                    <!-- Данные расписания будут динамически добавлены сюда -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Модальное окно для заметок -->
+        <div id="notes-modal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-md w-full">
+                <h3 class="text-lg font-semibold mb-4">Заметки</h3>
+                <textarea id="notes-content" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none h-24" placeholder="Введите ваши заметки здесь..."></textarea>
+                <div class="flex justify-end gap-2 mt-4">
+                    <button id="notes-save" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        Сохранить
+                    </button>
+                    <button id="notes-cancel" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scheduleData = {};
+        let currentDayType = 'training';
+        let currentNoteRowId = null;
+        let notificationsEnabled = false;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadScheduleData();
+            setupEventListeners();
+            updateDayProgress();
+            highlightCurrentTime();
+            
+            // Обновление времени каждую минуту
+            setInterval(() => {
+                highlightCurrentTime();
+                updateDayProgress();
+            }, 60000);
+            
+            // Запрос разрешения на уведомления
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    notificationsEnabled = permission === 'granted';
+                });
+            }
+        });
+
+        // Загрузка данных из localStorage или использование шаблонов
+        function loadScheduleData() {
+            const savedData = localStorage.getItem('scheduleData');
+            
+            if (savedData) {
+                scheduleData = JSON.parse(savedData);
+            } else {
+                // Инициализация шаблонными данными
+                scheduleData = getTemplateData();
+            }
+            
+            renderSchedule();
+        }
+
+        // Получение шаблонных данных для разных типов дней
+        function getTemplateData() {
+            return {
+                'training': [
+                    { id: 't1', time: '6:00-6:30', activity: 'Подъём, зарядка', category: 'other', notes: '' },
+                    { id: 't2', time: '6:30-7:30', activity: 'Украинский язык (теория/тесты)', category: 'study', notes: '' },
+                    { id: 't3', time: '7:30-8:30', activity: 'История Украины (теория/тесты)', category: 'study', notes: '' },
+                    { id: 't4', time: '8:30-9:00', activity: 'Завтрак', category: 'food', notes: '' },
+                    { id: 't5', time: '9:00-10:30', activity: 'Математика (разбор заданий)', category: 'study', notes: '' },
+                    { id: 't6', time: '10:30-12:00', activity: 'Украинская литература (чтение/разбор)', category: 'study', notes: '' },
+                    { id: 't7', time: '12:00-13:00', activity: 'Отдых, обед', category: 'food', notes: '' },
+                    { id: 't8', time: '13:00-14:00', activity: 'Повторение/английский язык', category: 'study', notes: '' },
+                    { id: 't9', time: '14:00-16:30', activity: 'Сборы и дорога в зал', category: 'other', notes: '' },
+                    { id: 't10', time: '16:30-20:00', activity: 'Тренировка', category: 'training', notes: '' },
+                    { id: 't11', time: '20:00-21:00', activity: 'Ужин, душ', category: 'food', notes: '' },
+                    { id: 't12', time: '21:00-22:00', activity: 'Отдых, подготовка ко сну', category: 'rest', notes: '' },
+                    { id: 't13', time: '22:00', activity: 'Сон', category: 'rest', notes: '' }
+                ],
+                'free': [
+                    { id: 'f1', time: '6:00-6:30', activity: 'Подъём, зарядка', category: 'other', notes: '' },
+                    { id: 'f2', time: '6:30-7:30', activity: 'Украинский язык (теория/тесты)', category: 'study', notes: '' },
+                    { id: 'f3', time: '7:30-8:30', activity: 'История Украины (теория/тесты)', category: 'study', notes: '' },
+                    { id: 'f4', time: '8:30-9:00', activity: 'Завтрак', category: 'food', notes: '' },
+                    { id: 'f5', time: '9:00-10:30', activity: 'Математика (разбор заданий)', category: 'study', notes: '' },
+                    { id: 'f6', time: '10:30-12:00', activity: 'Украинская литература (чтение/разбор)', category: 'study', notes: '' },
+                    { id: 'f7', time: '12:00-13:00', activity: 'Отдых, обед', category: 'food', notes: '' },
+                    { id: 'f8', time: '13:00-15:00', activity: 'Программирование (курсы, проекты)', category: 'study', notes: '' },
+                    { id: 'f9', time: '15:00-16:30', activity: 'Английский язык (грамматика/практика)', category: 'study', notes: '' },
+                    { id: 'f10', time: '16:30-18:00', activity: 'Повторение, упражнения', category: 'study', notes: '' },
+                    { id: 'f11', time: '18:00-19:00', activity: 'Свободное время (хобби, отдых)', category: 'rest', notes: '' },
+                    { id: 'f12', time: '19:00-20:00', activity: 'Ужин', category: 'food', notes: '' },
+                    { id: 'f13', time: '20:00-21:00', activity: 'Подготовка ко сну', category: 'rest', notes: '' },
+                    { id: 'f14', time: '21:00-22:00', activity: 'Отдых', category: 'rest', notes: '' },
+                    { id: 'f15', time: '22:00', activity: 'Сон', category: 'rest', notes: '' }
+                ],
+                'walk': [
+                    { id: 'w1', time: '6:00-6:30', activity: 'Подъём, зарядка', category: 'other', notes: '' },
+                    { id: 'w2', time: '6:30-7:30', activity: 'Украинский язык (теория/тесты)', category: 'study', notes: '' },
+                    { id: 'w3', time: '7:30-8:30', activity: 'История Украины (теория/тесты)', category: 'study', notes: '' },
+                    { id: 'w4', time: '8:30-9:00', activity: 'Завтрак', category: 'food', notes: '' },
+                    { id: 'w5', time: '9:00-10:30', activity: 'Математика (разбор заданий)', category: 'study', notes: '' },
+                    { id: 'w6', time: '10:30-12:00', activity: 'Украинская литература (чтение/разбор)', category: 'study', notes: '' },
+                    { id: 'w7', time: '12:00-13:00', activity: 'Отдых, обед', category: 'food', notes: '' },
+                    { id: 'w8', time: '13:00-14:00', activity: 'Английский язык или программирование', category: 'study', notes: '' },
+                    { id: 'w9', time: '14:00-20:00', activity: 'Прогулка/время с парнем', category: 'rest', notes: '' },
+                    { id: 'w10', time: '20:00-21:00', activity: 'Ужин, душ', category: 'food', notes: '' },
+                    { id: 'w11', time: '21:00-22:00', activity: 'Отдых', category: 'rest', notes: '' },
+                    { id: 'w12', time: '22:00', activity: 'Сон', category: 'rest', notes: '' }
+                ]
+            };
+        }
+
+        // Настройка обработчиков событий
+        function setupEventListeners() {
+            // Переключение типа дня
+            document.getElementById('day-type-selector').addEventListener('change', (e) => {
+                currentDayType = e.target.value;
+                renderSchedule();
+            });
+            
+            // Добавление новой строки
+            document.getElementById('add-row').addEventListener('click', addNewRow);
+            
+            // Переключение темы
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            
+            // Экспорт в PDF
+            document.getElementById('export-pdf').addEventListener('click', exportToPDF);
+            
+            // Сброс расписания
+            document.getElementById('reset-schedule').addEventListener('click', resetSchedule);
+            
+            // Обработчики для модального окна заметок
+            document.getElementById('notes-cancel').addEventListener('click', closeNotesModal);
+            document.getElementById('notes-save').addEventListener('click', saveNotes);
+        }
+
+        // Отрисовка расписания
+        function renderSchedule() {
+            const tableBody = document.getElementById('schedule-body');
+            tableBody.innerHTML = '';
+            
+            const dayData = scheduleData[currentDayType] || [];
+            const reminders = getReminders();
+            dayData.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.dataset.id = item.id;
+                row.classList.add('hover:bg-gray-50', 'dark:hover:bg-gray-700', 'transition-colors');
+                
+                if (item.category) {
+                    row.classList.add(`category-${item.category}`);
+                }
+                
+                row.innerHTML = `
+                    <td class="border p-2">
+                        <input type="text" value="${item.time}" class="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 py-1" 
+                            onchange="updateCell('${item.id}', 'time', this.value)">
+                    </td>
+                    <td class="border p-2">
+                        <input type="text" value="${item.activity}" class="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 py-1" 
+                            onchange="updateCell('${item.id}', 'activity', this.value)">
+                    </td>
+                    <td class="border p-2">
+                        <select class="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 py-1" 
+                            onchange="updateCell('${item.id}', 'category', this.value)">
+                            <option value="study" class="text-study" ${item.category === 'study' ? 'selected' : ''}>Учёба</option>
+                            <option value="training" class="text-training" ${item.category === 'training' ? 'selected' : ''}>Тренировка</option>
+                            <option value="rest" class="text-rest" ${item.category === 'rest' ? 'selected' : ''}>Отдых</option>
+                            <option value="food" class="text-food" ${item.category === 'food' ? 'selected' : ''}>Еда</option>
+                            <option value="other" class="text-other" ${item.category === 'other' ? 'selected' : ''}>Другое</option>
+                        </select>
+                    </td>
+                    <td class="border p-2 no-print">
+                        <button class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                            onclick="openNotesModal('${item.id}')" title="Заметки">
+                            ${item.notes ? '📝 Есть заметки' : '✏️ Добавить'}
+                        </button>
+                    </td>
+                    <td class="border p-2 no-print">
+                        <div class="flex gap-2">
+                            <button class="action-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 handle" title="Переместить">
+                                ↕️
+                            </button>
+                            <button class="action-btn p-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800" onclick="deleteRow('${item.id}')" title="Удалить">
+                                🗑️
+                            </button>
+                            <button class="action-btn btn-duplicate" onclick="duplicateRow('${item.id}')" title="Дублировать">
+                                ➕
+                            </button>
+                            <button class="action-btn btn-reminder${reminders[item.id] ? ' active' : ''}" onclick="toggleReminder('${item.id}')" title="Напоминание">
+                                🔔
+                            </button>
+                        </div>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+            
+            // Применение Sortable.js для перетаскивания строк
+            new Sortable(tableBody, {
+                handle: '.handle',
+                animation: 150,
+                onEnd: function(evt) {
+                    updateRowOrder();
+                }
+            });
+            
+            // Обновление заголовка таблицы в соответствии с типом дня
+            const table = document.getElementById('schedule-table');
+            table.className = table.className.replace(/day-type-\w+/g, '');
+            table.classList.add(`day-type-${currentDayType}`);
+            
+            // Подсветка текущего времени
+            highlightCurrentTime();
+            
+            // Сохранение данных
+            saveScheduleData();
+        }
+
+        // Обновление ячейки таблицы
+        function updateCell(id, field, value) {
+            const dayData = scheduleData[currentDayType] || [];
+            const itemIndex = dayData.findIndex(item => item.id === id);
+            
+            if (itemIndex !== -1) {
+                dayData[itemIndex][field] = value;
+                
+                // Обновление класса категории для строки
+                if (field === 'category') {
+                    const row = document.querySelector(`tr[data-id="${id}"]`);
+                    if (row) {
+                        row.className = row.className.replace(/category-\w+/g, '');
+                        row.classList.add(`category-${value}`);
+                    }
+                }
+                
+                saveScheduleData();
+                
+                // Если изменилось время, обновляем подсветку текущего времени
+                if (field === 'time') {
+                    highlightCurrentTime();
+                }
+            }
+        }
+
+        // Добавление новой строки
+        function addNewRow() {
+            const dayData = scheduleData[currentDayType] || [];
+            const newId = `${currentDayType[0]}${Date.now()}`;
+            
+            dayData.push({
+                id: newId,
+                time: '',
+                activity: '',
+                category: 'other',
+                notes: ''
+            });
+            
+            scheduleData[currentDayType] = dayData;
+            renderSchedule();
+        }
+
+        // Удаление строки
+        function deleteRow(id) {
+            const dayData = scheduleData[currentDayType] || [];
+            const itemIndex = dayData.findIndex(item => item.id === id);
+            
+            if (itemIndex !== -1) {
+                dayData.splice(itemIndex, 1);
+                scheduleData[currentDayType] = dayData;
+                renderSchedule();
+            }
+        }
+
+        // Обновление порядка строк после перетаскивания
+        function updateRowOrder() {
+            const tableBody = document.getElementById('schedule-body');
+            const rows = tableBody.querySelectorAll('tr');
+            const newOrder = [];
+            
+            rows.forEach(row => {
+                const id = row.dataset.id;
+                const dayData = scheduleData[currentDayType] || [];
+                const item = dayData.find(item => item.id === id);
+                
+                if (item) {
+                    newOrder.push(item);
+                }
+            });
+            
+            scheduleData[currentDayType] = newOrder;
+            saveScheduleData();
+        }
+
+        // Сохранение данных в localStorage
+        function saveScheduleData() {
+            localStorage.setItem('scheduleData', JSON.stringify(scheduleData));
+        }
+
+        // Подсветка текущего времени
+        function highlightCurrentTime() {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            
+            // Удаление предыдущей подсветки
+            const previousHighlighted = document.querySelector('.current-time');
+            if (previousHighlighted) {
+                previousHighlighted.classList.remove('current-time');
+            }
+            
+            // Поиск текущего временного блока
+            const dayData = scheduleData[currentDayType] || [];
+            let currentActivity = null;
+            
+            for (const item of dayData) {
+                const timeRange = item.time.split('-');
+                
+                if (timeRange.length === 2) {
+                    const startTime = parseTime(timeRange[0]);
+                    const endTime = parseTime(timeRange[1]);
+                    
+                    if (startTime && endTime) {
+                        const currentTime = currentHour * 60 + currentMinute;
+                        const startMinutes = startTime.hour * 60 + startTime.minute;
+                        const endMinutes = endTime.hour * 60 + endTime.minute;
+                        
+                        if (currentTime >= startMinutes && currentTime < endMinutes) {
+                            const row = document.querySelector(`tr[data-id="${item.id}"]`);
+                            if (row) {
+                                row.classList.add('current-time');
+                                currentActivity = item;
+                            }
+                            // --- ДОБАВЛЕНО: уведомление для напоминания ---
+                            if (isReminderActive(item.id)) {
+                                const reminderKey = `reminder_${item.id}_${now.toDateString()}`;
+                                if (!localStorage.getItem(reminderKey)) {
+                                    if ('Notification' in window && Notification.permission === 'granted') {
+                                        new Notification('Напоминание', { body: item.activity || 'Время события!', icon: 'https://cdn-icons-png.flaticon.com/512/2693/2693507.png' });
+                                    }
+                                    reminderAudio.currentTime = 0;
+                                    reminderAudio.play();
+                                    localStorage.setItem(reminderKey, 'sent');
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Отправка уведомления о следующем занятии
+            if (currentActivity && notificationsEnabled) {
+                checkUpcomingActivities(currentActivity);
+            }
+        }
+
+        // Проверка предстоящих занятий для уведомлений
+        function checkUpcomingActivities(currentActivity) {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            const currentTime = currentHour * 60 + currentMinute;
+            
+            const dayData = scheduleData[currentDayType] || [];
+            
+            for (const item of dayData) {
+                const timeRange = item.time.split('-');
+                
+                if (timeRange.length === 2) {
+                    const startTime = parseTime(timeRange[0]);
+                    
+                    if (startTime) {
+                        const startMinutes = startTime.hour * 60 + startTime.minute;
+                        const timeUntilStart = startMinutes - currentTime;
+                        
+                        // Уведомление за 10 минут до начала следующего занятия
+                        if (timeUntilStart > 0 && timeUntilStart <= 10) {
+                            // Проверяем, не отправляли ли мы уже уведомление для этого занятия
+                            const notificationKey = `notification_${item.id}_${now.toDateString()}`;
+                            const notificationSent = localStorage.getItem(notificationKey);
+                            
+                            if (!notificationSent && 'Notification' in window && Notification.permission === 'granted') {
+                                const notification = new Notification('Напоминание о расписании', {
+                                    body: `Через ${timeUntilStart} мин: ${item.activity}`,
+                                    icon: 'https://cdn-icons-png.flaticon.com/512/2693/2693507.png'
+                                });
+                                
+                                // Отмечаем, что уведомление отправлено
+                                localStorage.setItem(notificationKey, 'sent');
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Парсинг времени из строки
+        function parseTime(timeStr) {
+            const match = timeStr.trim().match(/(\d{1,2}):?(\d{2})?/);
+            
+            if (match) {
+                return {
+                    hour: parseInt(match[1], 10),
+                    minute: match[2] ? parseInt(match[2], 10) : 0
+                };
+            }
+            
+            return null;
+        }
+
+        // Обновление прогресса дня
+        function updateDayProgress() {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            
+            // Считаем, что день начинается в 6:00 и заканчивается в 22:00
+            const dayStartMinutes = 6 * 60;
+            const dayEndMinutes = 22 * 60;
+            const currentTimeMinutes = currentHour * 60 + currentMinute;
+            
+            let progress = 0;
+            
+            if (currentTimeMinutes < dayStartMinutes) {
+                progress = 0;
+            } else if (currentTimeMinutes > dayEndMinutes) {
+                progress = 100;
+            } else {
+                progress = Math.floor(((currentTimeMinutes - dayStartMinutes) / (dayEndMinutes - dayStartMinutes)) * 100);
+            }
+            
+            document.getElementById('progress-percentage').textContent = `${progress}%`;
+            document.getElementById('progress-bar-fill').style.width = `${progress}%`;
+        }
+
+        // Открытие модального окна для заметок
+        function openNotesModal(rowId) {
+            currentNoteRowId = rowId;
+            const dayData = scheduleData[currentDayType] || [];
+            const item = dayData.find(item => item.id === rowId);
+            
+            if (item) {
+                document.getElementById('notes-content').value = item.notes || '';
+                document.getElementById('notes-modal').classList.remove('hidden');
+            }
+        }
+
+        // Закрытие модального окна для заметок
+        function closeNotesModal() {
+            document.getElementById('notes-modal').classList.add('hidden');
+            currentNoteRowId = null;
+        }
+
+        // Сохранение заметок
+        function saveNotes() {
+            if (currentNoteRowId) {
+                const notes = document.getElementById('notes-content').value;
+                const dayData = scheduleData[currentDayType] || [];
+                const itemIndex = dayData.findIndex(item => item.id === currentNoteRowId);
+                
+                if (itemIndex !== -1) {
+                    dayData[itemIndex].notes = notes;
+                    saveScheduleData();
+                    renderSchedule();
+                }
+                
+                closeNotesModal();
+            }
+        }
+
+        // Переключение темы
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.getElementById('theme-icon');
+            const themeText = document.getElementById('theme-text');
+            
+            if (body.classList.contains('light')) {
+                body.classList.remove('light');
+                body.classList.add('dark');
+                themeIcon.textContent = '☀️';
+                themeText.textContent = 'Светлая тема';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                body.classList.remove('dark');
+                body.classList.add('light');
+                themeIcon.textContent = '🌙';
+                themeText.textContent = 'Тёмная тема';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Экспорт в PDF
+        function exportToPDF() {
+            window.print();
+        }
+
+        // Сброс расписания
+        function resetSchedule() {
+            if (confirm('Вы уверены, что хотите сбросить расписание? Все ваши изменения будут потеряны.')) {
+                localStorage.removeItem('scheduleData');
+                scheduleData = getTemplateData();
+                renderSchedule();
+            }
+        }
+
+        // Загрузка сохраненной темы
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.remove('light');
+            document.body.classList.add('dark');
+            document.getElementById('theme-icon').textContent = '☀️';
+            document.getElementById('theme-text').textContent = 'Светлая тема';
+        }
+        // --- ДОБАВЛЕНО: для звука уведомления ---
+        const reminderAudio = new Audio('https://cdn.pixabay.com/audio/2022/07/26/audio_124bfae1b2.mp3');
+        // --- ДОБАВЛЕНО: напоминания для строк ---
+        function getReminders() {
+            return JSON.parse(localStorage.getItem('rowReminders') || '{}');
+        }
+        function setReminders(obj) {
+            localStorage.setItem('rowReminders', JSON.stringify(obj));
+        }
+        function isReminderActive(rowId) {
+            const rem = getReminders();
+            return !!rem[rowId];
+        }
+        function toggleReminder(rowId) {
+            const rem = getReminders();
+            if (rem[rowId]) {
+                delete rem[rowId];
+            } else {
+                rem[rowId] = true;
+            }
+            setReminders(rem);
+            renderSchedule();
+        }
+        // --- ДОБАВЛЕНО: дублирование строки ---
+        function duplicateRow(rowId) {
+            const dayData = scheduleData[currentDayType] || [];
+            const idx = dayData.findIndex(item => item.id === rowId);
+            if (idx !== -1) {
+                const orig = dayData[idx];
+                const copy = { ...orig, id: `${rowId}_copy_${Date.now()}` };
+                dayData.splice(idx + 1, 0, copy);
+                scheduleData[currentDayType] = dayData;
+                renderSchedule();
+            }
+        }
+        // --- МОДИФИЦИРОВАНО: renderSchedule ---
+        function renderSchedule() {
+            const tableBody = document.getElementById('schedule-body');
+            tableBody.innerHTML = '';
+            
+            const dayData = scheduleData[currentDayType] || [];
+            const reminders = getReminders();
+            dayData.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.dataset.id = item.id;
+                row.classList.add('hover:bg-gray-50', 'dark:hover:bg-gray-700', 'transition-colors');
+                
+                if (item.category) {
+                    row.classList.add(`category-${item.category}`);
+                }
+                
+                row.innerHTML = `
+                    <td class="border p-2">
+                        <input type="text" value="${item.time}" class="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 py-1" 
+                            onchange="updateCell('${item.id}', 'time', this.value)">
+                    </td>
+                    <td class="border p-2">
+                        <input type="text" value="${item.activity}" class="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 py-1" 
+                            onchange="updateCell('${item.id}', 'activity', this.value)">
+                    </td>
+                    <td class="border p-2">
+                        <select class="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 py-1" 
+                            onchange="updateCell('${item.id}', 'category', this.value)">
+                            <option value="study" class="text-study" ${item.category === 'study' ? 'selected' : ''}>Учёба</option>
+                            <option value="training" class="text-training" ${item.category === 'training' ? 'selected' : ''}>Тренировка</option>
+                            <option value="rest" class="text-rest" ${item.category === 'rest' ? 'selected' : ''}>Отдых</option>
+                            <option value="food" class="text-food" ${item.category === 'food' ? 'selected' : ''}>Еда</option>
+                            <option value="other" class="text-other" ${item.category === 'other' ? 'selected' : ''}>Другое</option>
+                        </select>
+                    </td>
+                    <td class="border p-2 no-print">
+                        <button class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                            onclick="openNotesModal('${item.id}')" title="Заметки">
+                            ${item.notes ? '📝 Есть заметки' : '✏️ Добавить'}
+                        </button>
+                    </td>
+                    <td class="border p-2 no-print">
+                        <div class="flex gap-2">
+                            <button class="action-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 handle" title="Переместить">
+                                ↕️
+                            </button>
+                            <button class="action-btn p-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800" onclick="deleteRow('${item.id}')" title="Удалить">
+                                🗑️
+                            </button>
+                            <button class="action-btn btn-duplicate" onclick="duplicateRow('${item.id}')" title="Дублировать">
+                                ➕
+                            </button>
+                            <button class="action-btn btn-reminder${reminders[item.id] ? ' active' : ''}" onclick="toggleReminder('${item.id}')" title="Напоминание">
+                                🔔
+                            </button>
+                        </div>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+            
+            // Применение Sortable.js для перетаскивания строк
+            new Sortable(tableBody, {
+                handle: '.handle',
+                animation: 150,
+                onEnd: function(evt) {
+                    updateRowOrder();
+                }
+            });
+            
+            // Обновление заголовка таблицы в соответствии с типом дня
+            const table = document.getElementById('schedule-table');
+            table.className = table.className.replace(/day-type-\w+/g, '');
+            table.classList.add(`day-type-${currentDayType}`);
+            
+            // Подсветка текущего времени
+            highlightCurrentTime();
+            
+            // Сохранение данных
+            saveScheduleData();
+        }
+        // --- МОДИФИЦИРОВАНО: highlightCurrentTime ---
+        function highlightCurrentTime() {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            
+            // Удаление предыдущей подсветки
+            const previousHighlighted = document.querySelector('.current-time');
+            if (previousHighlighted) {
+                previousHighlighted.classList.remove('current-time');
+            }
+            
+            // Поиск текущего временного блока
+            const dayData = scheduleData[currentDayType] || [];
+            let currentActivity = null;
+            
+            for (const item of dayData) {
+                const timeRange = item.time.split('-');
+                
+                if (timeRange.length === 2) {
+                    const startTime = parseTime(timeRange[0]);
+                    const endTime = parseTime(timeRange[1]);
+                    
+                    if (startTime && endTime) {
+                        const currentTime = currentHour * 60 + currentMinute;
+                        const startMinutes = startTime.hour * 60 + startTime.minute;
+                        const endMinutes = endTime.hour * 60 + endTime.minute;
+                        
+                        if (currentTime >= startMinutes && currentTime < endMinutes) {
+                            const row = document.querySelector(`tr[data-id="${item.id}"]`);
+                            if (row) {
+                                row.classList.add('current-time');
+                                currentActivity = item;
+                            }
+                            // --- ДОБАВЛЕНО: уведомление для напоминания ---
+                            if (isReminderActive(item.id)) {
+                                const reminderKey = `reminder_${item.id}_${now.toDateString()}`;
+                                if (!localStorage.getItem(reminderKey)) {
+                                    if ('Notification' in window && Notification.permission === 'granted') {
+                                        new Notification('Напоминание', { body: item.activity || 'Время события!', icon: 'https://cdn-icons-png.flaticon.com/512/2693/2693507.png' });
+                                    }
+                                    reminderAudio.currentTime = 0;
+                                    reminderAudio.play();
+                                    localStorage.setItem(reminderKey, 'sent');
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Отправка уведомления о следующем занятии
+            if (currentActivity && notificationsEnabled) {
+                checkUpcomingActivities(currentActivity);
+            }
+        }
+        // --- ДОБАВЛЕНО: сброс напоминаний при смене дня ---
+        document.getElementById('day-type-selector').addEventListener('change', () => {
+            // Сбросить отметки о сработавших напоминаниях для нового дня
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('reminder_')) localStorage.removeItem(key);
+            });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'958fcdffc6db2d97',t:'MTc1MTQ3NjczMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
