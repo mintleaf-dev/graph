@@ -279,6 +279,8 @@
             <button id="push-subscribe-btn" class="px-4 py-2 bg-green-500 text-white rounded-lg no-print" style="margin-bottom:10px;">
                 Включить push-уведомления
             </button>
+            
+        <script>
         // === VAPID public key (замените на свой после генерации!) ===
         const VAPID_PUBLIC_KEY = 'BIQ5PVV-TXsTlnXI1IthlAALnsmXyQSnqJ6BHa3vzvmSmdZNOHzeN4r-QqfVOex06OfRlk3VVcIuGZN8sGv8IdQ';
 
@@ -329,6 +331,8 @@
             const btn = document.getElementById('push-subscribe-btn');
             if (btn) btn.onclick = subscribeUserToPush;
         });
+        </script>
+
             <h1 class="text-3xl font-bold text-primary">Летний график</h1>
             
             <div class="flex flex-wrap gap-2">
