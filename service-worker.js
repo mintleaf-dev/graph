@@ -11,6 +11,7 @@ self.addEventListener('activate', event => {
 });
 
 // Событие получения push-сообщения
+
 self.addEventListener('push', function(event) {
   let data = {};
   if (event.data) {
@@ -25,10 +26,17 @@ self.addEventListener('push', function(event) {
     body: data.body || 'У вас есть новое напоминание!',
     icon: data.icon || 'https://cdn-icons-png.flaticon.com/512/2693/2693507.png',
     badge: data.badge || 'https://cdn-icons-png.flaticon.com/512/2693/2693507.png',
-    data: data.url ? { url: data.url } : {}
+    data: data.url ? { url: data.url } : {},
+    requireInteraction: data.requireInteraction !== undefined ? data.requireInteraction : true
   };
   event.waitUntil(
-    self.registration.showNotification(title, options)
+    Promise.all([
+      self.registration.showNotification(title, options),
+      // Сообщить вкладкам, чтобы воспроизвести звук
+      self.clients.matchAll({includeUncontrolled: true, type: 'window'}).then(clients => {
+        clients.forEach(client => client.postMessage({type: 'play-sound'}));
+      })
+    ])
   );
 });
 
