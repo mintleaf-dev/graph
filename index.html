@@ -326,10 +326,19 @@
             return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
         }
 
-        // Навесить обработчик на кнопку
+        // Навесить обработчик на кнопку и слушать сообщения от service worker для звука
         document.addEventListener('DOMContentLoaded', () => {
             const btn = document.getElementById('push-subscribe-btn');
             if (btn) btn.onclick = subscribeUserToPush;
+
+            // Воспроизведение звука при push
+            if (navigator.serviceWorker) {
+                navigator.serviceWorker.addEventListener('message', event => {
+                    if (event.data && event.data.type === 'play-sound') {
+                        new Audio('https://cdn.pixabay.com/audio/2022/07/26/audio_124bfae1b2.mp3').play();
+                    }
+                });
+            }
         });
         </script>
 
