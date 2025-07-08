@@ -276,6 +276,7 @@
 <body class="light">
     <div class="container mx-auto px-4 py-8 max-w-6xl">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+
             <button id="push-subscribe-btn" class="px-4 py-2 bg-green-500 text-white rounded-lg no-print" style="margin-bottom:10px;">
                 Включить push-уведомления
             </button>
@@ -326,16 +327,47 @@
             return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
         }
 
-        // Навесить обработчик на кнопку и слушать сообщения от service worker для звука
+        // Навесить обработчик на кнопки и слушать сообщения от service worker для звука
+        let notificationAudio = null;
+        let audioInterval = null;
         document.addEventListener('DOMContentLoaded', () => {
             const btn = document.getElementById('push-subscribe-btn');
             if (btn) btn.onclick = subscribeUserToPush;
+
+        // (Удалена кнопка тестового уведомления)
 
             // Воспроизведение звука при push
             if (navigator.serviceWorker) {
                 navigator.serviceWorker.addEventListener('message', event => {
                     if (event.data && event.data.type === 'play-sound') {
-                        new Audio('https://cdn.pixabay.com/audio/2022/07/26/audio_124bfae1b2.mp3').play();
+                        try {
+                            if (notificationAudio) {
+                                notificationAudio.pause();
+                                notificationAudio.currentTime = 0;
+                            }
+                            // Используем локальный файл звука
+                            notificationAudio = new Audio('sound.wav');
+                            notificationAudio.loop = true;
+                            notificationAudio.volume = 1.0; // максимальная громкость
+                            // Попытка воспроизвести звук
+                            const playPromise = notificationAudio.play();
+                            if (playPromise !== undefined) {
+                                playPromise.catch((e) => {
+                                    // Если браузер блокирует автозапуск — показать alert
+                                    alert('Внимание! Воспроизвести звук не удалось. Включите звук и взаимодействуйте со страницей.');
+                                });
+                            }
+                            // Остановить звук через 60 секунд (ограничение браузера)
+                            if (audioInterval) clearTimeout(audioInterval);
+                            audioInterval = setTimeout(() => {
+                                if (notificationAudio) notificationAudio.pause();
+                            }, 60000);
+                        } catch (e) {
+                            alert('Ошибка воспроизведения звука: ' + e);
+                        }
+                    }
+                    if (event.data && event.data.type === 'stop-sound') {
+                        if (notificationAudio) notificationAudio.pause();
                     }
                 });
             }
@@ -625,6 +657,8 @@
                     if (showClockBtn) row.classList.add('current-time');
                 }
                 // Новый вывод длительности
+                // Кнопка напоминания всегда активна по умолчанию (жёлтая), если не отключена вручную
+                const reminderActive = isReminderActive(item.id);
                 row.innerHTML = `
                     <td class="border p-2 w-32" style="min-width:90px;max-width:120px;">
                         <input type="text" value="${item.time}" class="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500 py-1 text-sm" 
@@ -664,7 +698,7 @@
                             <button class="action-btn btn-duplicate" onclick="duplicateRow('${item.id}', '${dayType}')" title="Дублировать">
                                 ➕
                             </button>
-                            <button class="action-btn btn-reminder${reminders[item.id] ? ' active' : ''}" onclick="toggleReminder('${item.id}')" title="Напоминание">
+                            <button class="action-btn btn-reminder${reminderActive ? ' active' : ''}" onclick="toggleReminder('${item.id}')" title="Напоминание">
                                 🔔
                             </button>
                             ${showClockBtn ? `<button class="action-btn btn-clock" title="Сейчас"></button>` : ''}
@@ -829,34 +863,84 @@ function getCurrentRowId(dayType) {
 
         // (удалена дублирующая функция highlightCurrentTime)
 
-        // Проверка предстоящих занятий для уведомлений (для всех дней и всех строк)
+        // --- Упрощённые напоминания для строк ---
+        function getReminders() {
+            // По умолчанию все включены (true), если не сохранено в localStorage
+            let rem = JSON.parse(localStorage.getItem('rowReminders') || 'null');
+            if (!rem) {
+                rem = {};
+                // Включаем все напоминания по умолчанию для всех строк всех dayType
+                ['training', 'free', 'walk'].forEach(dayType => {
+                    const dayData = scheduleData[dayType] || [];
+                    for (const item of dayData) {
+                        rem[item.id] = true;
+                    }
+                });
+                localStorage.setItem('rowReminders', JSON.stringify(rem));
+            }
+            return rem;
+        }
+        function setReminders(obj) {
+            localStorage.setItem('rowReminders', JSON.stringify(obj));
+        }
+        function isReminderActive(rowId) {
+            const rem = getReminders();
+            // По умолчанию true, если не указано иначе
+            return rem[rowId] !== false;
+        }
+        function toggleReminder(rowId) {
+            const rem = getReminders();
+            if (rem[rowId] === false) {
+                rem[rowId] = true;
+            } else {
+                rem[rowId] = false;
+            }
+            setReminders(rem);
+            renderSchedule();
+        }
+
+        // Проверка и отправка уведомлений ровно в момент начала интервала
         function checkUpcomingActivities() {
             const now = new Date();
             const currentHour = now.getHours();
             const currentMinute = now.getMinutes();
             const currentTime = currentHour * 60 + currentMinute;
             const reminders = getReminders();
-            // Проверяем все dayType
             ['training', 'free', 'walk'].forEach(dayType => {
                 const dayData = scheduleData[dayType] || [];
                 for (const item of dayData) {
-                    if (!reminders[item.id]) continue; // Только для включённых напоминаний
+                    if (!isReminderActive(item.id)) continue;
                     const timeRange = item.time.split('-');
-                    if (timeRange.length === 2) {
+                    if (timeRange.length >= 1 && item.time.trim()) {
                         const startTime = parseTime(timeRange[0]);
                         if (startTime) {
                             const startMinutes = startTime.hour * 60 + startTime.minute;
-                            const timeUntilStart = startMinutes - currentTime;
-                            // Уведомление за 10 минут до начала
-                            if (timeUntilStart > 0 && timeUntilStart <= 10) {
+                            if (startMinutes === currentTime) {
                                 const notificationKey = `reminder_${item.id}_${now.toDateString()}`;
                                 const notificationSent = localStorage.getItem(notificationKey);
                                 if (!notificationSent && 'Notification' in window && Notification.permission === 'granted') {
-                                    new Notification('Напоминание о расписании', {
-                                        body: `Через ${timeUntilStart} мин: ${item.activity}`,
-                                        icon: 'https://cdn-icons-png.flaticon.com/512/2693/2693507.png'
+                                    // Показываем системное уведомление
+                                    const n = new Notification('Напоминание', {
+                                        body: `Сейчас: ${item.activity}`,
+                                        icon: 'https://cdn-icons-png.flaticon.com/512/2693/2693507.png',
+                                        requireInteraction: true, // уведомление остаётся на экране
+                                        silent: true // не используем системный звук
                                     });
-                                    reminderAudio.play().catch(()=>{});
+                                    // Проигрываем локальный звук 5 раз
+                                    let playCount = 0;
+                                    function playSound() {
+                                        if (playCount < 5) {
+                                            reminderAudio.currentTime = 0;
+                                            reminderAudio.play().catch(()=>{});
+                                            playCount++;
+                                            setTimeout(playSound, 1200); // интервал между повторами
+                                        }
+                                    }
+                                    playSound();
+                                    // Уведомление остаётся на экране 2 минуты
+                                    setTimeout(() => {
+                                        n.close && n.close();
+                                    }, 2 * 60 * 1000);
                                     localStorage.setItem(notificationKey, 'sent');
                                 }
                             }
@@ -907,8 +991,6 @@ function getCurrentRowId(dayType) {
             fill.style.background = 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)';
             fill.style.transition = 'width 0.5s cubic-bezier(0.4,0,0.6,1)';
         }
-
-        // ...existing code...
 
         // Закрытие модального окна для заметок
         function closeNotesModal() {
@@ -977,30 +1059,43 @@ function getCurrentRowId(dayType) {
             document.getElementById('theme-text').textContent = 'Светлая тема';
         }
         // --- ДОБАВЛЕНО: для звука уведомления ---
-        const reminderAudio = new Audio('https://cdn.pixabay.com/audio/2022/07/26/audio_124bfae1b2.mp3');
+        // --- ДОБАВЛЕНО: локальный звук для напоминаний ---
+        const reminderAudio = new Audio('sound.wav');
         // --- ДОБАВЛЕНО: напоминания для строк ---
         function getReminders() {
-            return JSON.parse(localStorage.getItem('rowReminders') || '{}');
+            // По умолчанию все включены (true), если не сохранено в localStorage
+            let rem = JSON.parse(localStorage.getItem('rowReminders') || 'null');
+            if (!rem) {
+                rem = {};
+                // Включаем все напоминания по умолчанию для всех строк всех dayType
+                ['training', 'free', 'walk'].forEach(dayType => {
+                    const dayData = scheduleData[dayType] || [];
+                    for (const item of dayData) {
+                        rem[item.id] = true;
+                    }
+                });
+                localStorage.setItem('rowReminders', JSON.stringify(rem));
+            }
+            return rem;
         }
         function setReminders(obj) {
             localStorage.setItem('rowReminders', JSON.stringify(obj));
         }
         function isReminderActive(rowId) {
             const rem = getReminders();
-            return !!rem[rowId];
+            // По умолчанию true, если не указано иначе
+            return rem[rowId] !== false;
         }
         function toggleReminder(rowId) {
             const rem = getReminders();
-            if (rem[rowId]) {
-                delete rem[rowId];
-            } else {
+            if (rem[rowId] === false) {
                 rem[rowId] = true;
+            } else {
+                rem[rowId] = false;
             }
             setReminders(rem);
             renderSchedule();
         }
-        // ...existing code...
-        // ...existing code...
         // ...existing code...
         // --- ДОБАВЛЕНО: сброс напоминаний при смене дня ---
         document.getElementById('day-type-selector').addEventListener('change', () => {
