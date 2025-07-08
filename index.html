@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Летний график</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
+    <link rel="shortcut icon" href="/favicon.ico">
     <script>
     // Регистрация Service Worker для push-уведомлений
     if ('serviceWorker' in navigator) {
@@ -276,66 +281,11 @@
 <body class="light">
     <div class="container mx-auto px-4 py-8 max-w-6xl">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-
-            <button id="push-subscribe-btn" class="px-4 py-2 bg-green-500 text-white rounded-lg no-print" style="margin-bottom:10px;">
-                Включить push-уведомления
-            </button>
-            
         <script>
-        // === VAPID public key (замените на свой после генерации!) ===
-        const VAPID_PUBLIC_KEY = 'BIQ5PVV-TXsTlnXI1IthlAALnsmXyQSnqJ6BHa3vzvmSmdZNOHzeN4r-QqfVOex06OfRlk3VVcIuGZN8sGv8IdQ';
-
-        // Функция для подписки на push-уведомления
-        async function subscribeUserToPush() {
-            if (!('serviceWorker' in navigator)) {
-                alert('Service Worker не поддерживается');
-                return;
-            }
-            const reg = await navigator.serviceWorker.ready;
-            let subscription = await reg.pushManager.getSubscription();
-            if (!subscription) {
-                try {
-                    subscription = await reg.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-                    });
-                } catch (e) {
-                    alert('Не удалось подписаться: ' + e);
-                    return;
-                }
-            }
-            // Отправить подписку на сервер
-            try {
-                await fetch('/subscribe', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(subscription)
-                });
-                alert('Подписка на push-уведомления выполнена!');
-            } catch (e) {
-                alert('Ошибка отправки подписки на сервер: ' + e);
-            }
-        }
-
-        // Вспомогательная функция для преобразования ключа
-        function urlBase64ToUint8Array(base64String) {
-            const padding = '='.repeat((4 - base64String.length % 4) % 4);
-            const base64 = (base64String + padding)
-                .replace(/\-/g, '+')
-                .replace(/_/g, '/');
-            const rawData = window.atob(base64);
-            return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
-        }
-
-        // Навесить обработчик на кнопки и слушать сообщения от service worker для звука
+        // Навесить обработчик на сообщения от service worker для звука
         let notificationAudio = null;
         let audioInterval = null;
         document.addEventListener('DOMContentLoaded', () => {
-            const btn = document.getElementById('push-subscribe-btn');
-            if (btn) btn.onclick = subscribeUserToPush;
-
-        // (Удалена кнопка тестового уведомления)
-
             // Воспроизведение звука при push
             if (navigator.serviceWorker) {
                 navigator.serviceWorker.addEventListener('message', event => {
