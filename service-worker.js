@@ -40,6 +40,13 @@ self.addEventListener('push', function(event) {
   );
 });
 
+// Остановить звук при закрытии уведомления
+self.addEventListener('notificationclose', function(event) {
+  self.clients.matchAll({includeUncontrolled: true, type: 'window'}).then(clients => {
+    clients.forEach(client => client.postMessage({type: 'stop-sound'}));
+  });
+});
+
 // Обработка клика по уведомлению
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
